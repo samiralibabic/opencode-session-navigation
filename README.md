@@ -2,8 +2,6 @@
 
 Vim-like navigation mode for the OpenCode TUI session view.
 
-This is a standalone TUI plugin based on the `session-navigation-mode` branch behavior. It does not patch OpenCode core.
-
 ## Install
 
 ```sh
@@ -79,15 +77,9 @@ You can override keys through plugin options:
 
 Set any keybind to `false` to disable it. Set `indicator` to `false` to hide the prompt indicator.
 
-## Notes
+## Compatibility
 
-The plugin uses OpenCode's public TUI keymap APIs:
-
-- `api.keymap.registerLayer({ commands, bindings })`
-- `api.keymap.dispatchCommand(name)`
-- `api.slots.register(...)` for the prompt indicator
-
-For message jumps it first dispatches OpenCode's host commands (`session.message.next` and `session.message.previous`). If those commands are unavailable in an older build, it falls back to locating visible user-message renderables by message id.
+Message jumps work with current OpenCode builds and include a fallback for older builds where needed.
 
 ## Development
 
