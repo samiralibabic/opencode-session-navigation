@@ -40,5 +40,8 @@
     "opencode-plugin",
     "tui",
     "navigation"
-  ]
+  ],
+  "engines": {
+    "opencode": ">=1.15.0"
+  }
 }

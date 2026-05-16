@@ -4,11 +4,19 @@ Vim-like navigation mode for the OpenCode TUI session view.
 
 ## Install
 
+After the package is published to npm:
+
 ```sh
-opencode plugin install opencode-session-navigation
+opencode plugin opencode-session-navigation
 ```
 
-Or add it manually to your OpenCode config:
+Or use the shorter alias:
+
+```sh
+opencode plug opencode-session-navigation
+```
+
+You can also add it manually to your OpenCode TUI config, `tui.json`:
 
 ```json
 {
@@ -16,7 +24,7 @@ Or add it manually to your OpenCode config:
 }
 ```
 
-For local development from this repository:
+For local development from this repository, add the local path to `tui.json`:
 
 ```json
 {
