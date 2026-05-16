@@ -1,6 +1,6 @@
 {
   "name": "opencode-session-navigation",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Vim-like session navigation mode for OpenCode TUI.",
   "type": "module",
   "exports": {
