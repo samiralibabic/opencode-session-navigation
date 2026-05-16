@@ -54,7 +54,7 @@ const defaultKeybinds = {
 }
 
 type KeybindName = keyof typeof defaultKeybinds
-type Keybinds = Record<KeybindName, string>
+type Keybinds = Record<KeybindName, readonly string[]>
 
 const hostCommand = {
   lineDown: "session.line.down",
@@ -77,23 +77,31 @@ function readOptions(value: unknown): PluginOptions {
   return isObject(value) ? (value as PluginOptions) : {}
 }
 
+function keyList(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 function keybindsFromOptions(options: PluginOptions): Keybinds {
   const configured = isObject(options.keybinds) ? options.keybinds : {}
-  const next: Keybinds = { ...defaultKeybinds }
+  const next = {} as Record<KeybindName, string[]>
 
   for (const key of Object.keys(defaultKeybinds) as KeybindName[]) {
+    next[key] = keyList(defaultKeybinds[key])
     const value = configured[key]
     if (value === false) {
-      next[key] = "none"
+      next[key] = []
       continue
     }
     if (typeof value === "string" && value.trim()) {
-      next[key] = value
+      next[key] = keyList(value)
       continue
     }
     if (Array.isArray(value)) {
-      const joined = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).join(",")
-      if (joined) next[key] = joined
+      const list = value.flatMap((item) => (typeof item === "string" ? keyList(item) : []))
+      if (list.length) next[key] = list
     }
   }
 
@@ -231,9 +239,18 @@ function fallbackScroll(api: Api, action: keyof typeof hostCommand): boolean {
   }
 }
 
-function binding(key: string, cmd: string): TuiBinding | undefined {
-  if (key === "none") return undefined
-  return { key, cmd, preventDefault: true }
+function bindings(keys: readonly string[], cmd: string): TuiBinding[] {
+  return keys.map((key) => ({ key, cmd, preventDefault: true }))
+}
+
+function keyMatchers(api: Api, keys: readonly string[]) {
+  return keys.flatMap((key) => {
+    try {
+      return [api.keymap.createKeyMatcher(key)]
+    } catch {
+      return []
+    }
+  })
 }
 
 const plugin: TuiPluginModule = {
@@ -241,6 +258,8 @@ const plugin: TuiPluginModule = {
   tui: async (api, rawOptions) => {
     const options = readOptions(rawOptions)
     const keys = keybindsFromOptions(options)
+    const enterMatchers = keyMatchers(api, keys.enter)
+    const exitMatchers = keyMatchers(api, keys.exit)
     const [activeSession, setActiveSession] = createSignal<string | undefined>()
     let previousFocus: Renderable | undefined
 
@@ -251,6 +270,7 @@ const plugin: TuiPluginModule = {
 
     const exitNavigation = (focusPrevious = true) => {
       if (!activeSession()) return
+      api.keymap.clearPendingSequence()
       setActiveSession(undefined)
       if (focusPrevious && previousFocus && !previousFocus.isDestroyed) previousFocus.focus()
       previousFocus = undefined
@@ -263,6 +283,7 @@ const plugin: TuiPluginModule = {
       if (!id || !canUseNavigation(api)) return
       previousFocus = api.renderer.currentFocusedRenderable ?? undefined
       previousFocus?.blur()
+      api.keymap.clearPendingSequence()
       setActiveSession(id)
       api.ui.dialog.clear()
       api.renderer.requestRender()
@@ -377,26 +398,52 @@ const plugin: TuiPluginModule = {
       },
     ]
 
-    const enterBindings = [binding(keys.enter, command.enter)].filter((item): item is TuiBinding => Boolean(item))
+    const enterBindings = bindings(keys.enter, command.enter)
     const navigationBindings = [
-      binding(keys.exit, command.exit),
-      binding(keys.lineDown, command.lineDown),
-      binding(keys.lineUp, command.lineUp),
-      binding(keys.halfPageDown, command.halfPageDown),
-      binding(keys.halfPageUp, command.halfPageUp),
-      binding(keys.pageDown, command.pageDown),
-      binding(keys.pageUp, command.pageUp),
-      binding(keys.first, command.first),
-      binding(keys.last, command.last),
-      binding(keys.nextMessage, command.nextMessage),
-      binding(keys.previousMessage, command.previousMessage),
-    ].filter((item): item is TuiBinding => Boolean(item))
+      ...bindings(keys.exit, command.exit),
+      ...bindings(keys.lineDown, command.lineDown),
+      ...bindings(keys.lineUp, command.lineUp),
+      ...bindings(keys.halfPageDown, command.halfPageDown),
+      ...bindings(keys.halfPageUp, command.halfPageUp),
+      ...bindings(keys.pageDown, command.pageDown),
+      ...bindings(keys.pageUp, command.pageUp),
+      ...bindings(keys.first, command.first),
+      ...bindings(keys.last, command.last),
+      ...bindings(keys.nextMessage, command.nextMessage),
+      ...bindings(keys.previousMessage, command.previousMessage),
+    ]
 
     api.lifecycle.onDispose(
       api.keymap.registerLayer({
         priority: LAYER_PRIORITY,
         commands,
       }),
+    )
+
+    api.lifecycle.onDispose(
+      api.keymap.intercept(
+        "key",
+        (ctx) => {
+          if (!enterMatchers.some((match) => match(ctx.event))) return
+          if (isActive() || !canUseNavigation(api)) return
+          ctx.consume()
+          enterNavigation()
+        },
+        { priority: LAYER_PRIORITY },
+      ),
+    )
+
+    api.lifecycle.onDispose(
+      api.keymap.intercept(
+        "key",
+        (ctx) => {
+          if (!exitMatchers.some((match) => match(ctx.event))) return
+          if (!isActive()) return
+          ctx.consume()
+          exitNavigation(true)
+        },
+        { priority: LAYER_PRIORITY },
+      ),
     )
 
     api.lifecycle.onDispose(

@@ -48,22 +48,26 @@ function isObject(value) {
 function readOptions(value) {
   return isObject(value) ? value : {};
 }
+function keyList(value) {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
 function keybindsFromOptions(options) {
   const configured = isObject(options.keybinds) ? options.keybinds : {};
-  const next = { ...defaultKeybinds };
+  const next = {};
   for (const key of Object.keys(defaultKeybinds)) {
+    next[key] = keyList(defaultKeybinds[key]);
     const value = configured[key];
     if (value === false) {
-      next[key] = "none";
+      next[key] = [];
       continue;
     }
     if (typeof value === "string" && value.trim()) {
-      next[key] = value;
+      next[key] = keyList(value);
       continue;
     }
     if (Array.isArray(value)) {
-      const joined = value.filter((item) => typeof item === "string" && item.trim().length > 0).join(",");
-      if (joined) next[key] = joined;
+      const list = value.flatMap((item) => typeof item === "string" ? keyList(item) : []);
+      if (list.length) next[key] = list;
     }
   }
   return next;
@@ -171,15 +175,25 @@ function fallbackScroll(api, action) {
       return true;
   }
 }
-function binding(key, cmd) {
-  if (key === "none") return void 0;
-  return { key, cmd, preventDefault: true };
+function bindings(keys, cmd) {
+  return keys.map((key) => ({ key, cmd, preventDefault: true }));
+}
+function keyMatchers(api, keys) {
+  return keys.flatMap((key) => {
+    try {
+      return [api.keymap.createKeyMatcher(key)];
+    } catch {
+      return [];
+    }
+  });
 }
 var plugin = {
   id: PLUGIN_ID,
   tui: async (api, rawOptions) => {
     const options = readOptions(rawOptions);
     const keys = keybindsFromOptions(options);
+    const enterMatchers = keyMatchers(api, keys.enter);
+    const exitMatchers = keyMatchers(api, keys.exit);
     const [activeSession, setActiveSession] = createSignal();
     let previousFocus;
     const isActive = () => {
@@ -188,6 +202,7 @@ var plugin = {
     };
     const exitNavigation = (focusPrevious = true) => {
       if (!activeSession()) return;
+      api.keymap.clearPendingSequence();
       setActiveSession(void 0);
       if (focusPrevious && previousFocus && !previousFocus.isDestroyed) previousFocus.focus();
       previousFocus = void 0;
@@ -199,6 +214,7 @@ var plugin = {
       if (!id || !canUseNavigation(api)) return;
       previousFocus = api.renderer.currentFocusedRenderable ?? void 0;
       previousFocus?.blur();
+      api.keymap.clearPendingSequence();
       setActiveSession(id);
       api.ui.dialog.clear();
       api.renderer.requestRender();
@@ -310,25 +326,49 @@ var plugin = {
         run: () => runNavigation("previousMessage")
       }
     ];
-    const enterBindings = [binding(keys.enter, command.enter)].filter((item) => Boolean(item));
+    const enterBindings = bindings(keys.enter, command.enter);
     const navigationBindings = [
-      binding(keys.exit, command.exit),
-      binding(keys.lineDown, command.lineDown),
-      binding(keys.lineUp, command.lineUp),
-      binding(keys.halfPageDown, command.halfPageDown),
-      binding(keys.halfPageUp, command.halfPageUp),
-      binding(keys.pageDown, command.pageDown),
-      binding(keys.pageUp, command.pageUp),
-      binding(keys.first, command.first),
-      binding(keys.last, command.last),
-      binding(keys.nextMessage, command.nextMessage),
-      binding(keys.previousMessage, command.previousMessage)
-    ].filter((item) => Boolean(item));
+      ...bindings(keys.exit, command.exit),
+      ...bindings(keys.lineDown, command.lineDown),
+      ...bindings(keys.lineUp, command.lineUp),
+      ...bindings(keys.halfPageDown, command.halfPageDown),
+      ...bindings(keys.halfPageUp, command.halfPageUp),
+      ...bindings(keys.pageDown, command.pageDown),
+      ...bindings(keys.pageUp, command.pageUp),
+      ...bindings(keys.first, command.first),
+      ...bindings(keys.last, command.last),
+      ...bindings(keys.nextMessage, command.nextMessage),
+      ...bindings(keys.previousMessage, command.previousMessage)
+    ];
     api.lifecycle.onDispose(
       api.keymap.registerLayer({
         priority: LAYER_PRIORITY,
         commands
       })
+    );
+    api.lifecycle.onDispose(
+      api.keymap.intercept(
+        "key",
+        (ctx) => {
+          if (!enterMatchers.some((match) => match(ctx.event))) return;
+          if (isActive() || !canUseNavigation(api)) return;
+          ctx.consume();
+          enterNavigation();
+        },
+        { priority: LAYER_PRIORITY }
+      )
+    );
+    api.lifecycle.onDispose(
+      api.keymap.intercept(
+        "key",
+        (ctx) => {
+          if (!exitMatchers.some((match) => match(ctx.event))) return;
+          if (!isActive()) return;
+          ctx.consume();
+          exitNavigation(true);
+        },
+        { priority: LAYER_PRIORITY }
+      )
     );
     api.lifecycle.onDispose(
       api.keymap.registerLayer({

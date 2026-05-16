@@ -4,19 +4,21 @@ Vim-like navigation mode for the OpenCode TUI session view.
 
 ## Install
 
-Install from npm:
+Install globally from npm:
 
 ```sh
-opencode plugin opencode-session-navigation
+opencode plugin --global opencode-session-navigation
 ```
 
 Or use the shorter alias:
 
 ```sh
-opencode plug opencode-session-navigation
+opencode plug --global opencode-session-navigation
 ```
 
-You can also add it manually to your OpenCode TUI config, `tui.json`:
+Global install keeps the plugin available in every repo and avoids modifying a repository-local `.opencode/tui.json` when you run the command from inside a git worktree.
+
+To enable it for one project only, add it manually to that project's OpenCode TUI config, `tui.json`:
 
 ```json
 {

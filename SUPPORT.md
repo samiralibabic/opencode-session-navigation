@@ -6,7 +6,7 @@
 
 - Latest released version of this plugin
 - OpenCode versions matching `engines.opencode` in `package.json`
-- Standard OpenCode TUI plugin installation through `tui.json` or `opencode plugin <module>`
+- Standard OpenCode TUI plugin installation through `tui.json` or `opencode plugin --global <module>`
 
 ## Getting Help
 
