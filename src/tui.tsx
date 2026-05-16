@@ -261,19 +261,16 @@ const plugin: TuiPluginModule = {
     const enterMatchers = keyMatchers(api, keys.enter)
     const exitMatchers = keyMatchers(api, keys.exit)
     const [activeSession, setActiveSession] = createSignal<string | undefined>()
-    let previousFocus: Renderable | undefined
 
     const isActive = () => {
       const id = activeSession()
       return Boolean(id && canUseNavigation(api, id))
     }
 
-    const exitNavigation = (focusPrevious = true) => {
+    const exitNavigation = () => {
       if (!activeSession()) return
       api.keymap.clearPendingSequence()
       setActiveSession(undefined)
-      if (focusPrevious && previousFocus && !previousFocus.isDestroyed) previousFocus.focus()
-      previousFocus = undefined
       api.ui.dialog.clear()
       api.renderer.requestRender()
     }
@@ -281,8 +278,6 @@ const plugin: TuiPluginModule = {
     const enterNavigation = () => {
       const id = sessionID(api)
       if (!id || !canUseNavigation(api)) return
-      previousFocus = api.renderer.currentFocusedRenderable ?? undefined
-      previousFocus?.blur()
       api.keymap.clearPendingSequence()
       setActiveSession(id)
       api.ui.dialog.clear()
@@ -301,7 +296,7 @@ const plugin: TuiPluginModule = {
       {
         name: command.enter,
         title: "Enter session navigation mode",
-        desc: "Blur the prompt and use Vim-like keys to scroll the current idle session.",
+        desc: "Use Vim-like keys to scroll the current idle session without editing the prompt.",
         category: "Session",
         hidden: true,
         enabled: () => !isActive() && canUseNavigation(api),
@@ -314,7 +309,7 @@ const plugin: TuiPluginModule = {
         category: "Session",
         hidden: true,
         enabled: isActive,
-        run: () => exitNavigation(true),
+        run: exitNavigation,
       },
       {
         name: command.lineDown,
@@ -440,7 +435,7 @@ const plugin: TuiPluginModule = {
           if (!exitMatchers.some((match) => match(ctx.event))) return
           if (!isActive()) return
           ctx.consume()
-          exitNavigation(true)
+          exitNavigation()
         },
         { priority: LAYER_PRIORITY },
       ),
@@ -464,17 +459,17 @@ const plugin: TuiPluginModule = {
 
     api.lifecycle.onDispose(
       api.event.on("session.status", (event) => {
-        if (event.properties.sessionID === activeSession() && event.properties.status.type !== "idle") exitNavigation(false)
+        if (event.properties.sessionID === activeSession() && event.properties.status.type !== "idle") exitNavigation()
       }),
     )
     api.lifecycle.onDispose(
       api.event.on("permission.asked", (event) => {
-        if (event.properties.sessionID === activeSession()) exitNavigation(true)
+        if (event.properties.sessionID === activeSession()) exitNavigation()
       }),
     )
     api.lifecycle.onDispose(
       api.event.on("question.asked", (event) => {
-        if (event.properties.sessionID === activeSession()) exitNavigation(true)
+        if (event.properties.sessionID === activeSession()) exitNavigation()
       }),
     )
 
@@ -486,7 +481,7 @@ const plugin: TuiPluginModule = {
         slots: {
           session_prompt_right(ctx, props) {
             return (
-              <Show when={activeSession() === props.session_id && isActive()}>
+              <Show when={activeSession() === props.session_id}>
                 <text>
                   <span style={{ fg: ctx.theme.current.warning, bold: true }}>{indicator}</span>
                 </text>

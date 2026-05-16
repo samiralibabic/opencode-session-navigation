@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4] - 2026-05-16
+
+### Fixed
+
+- Make navigation mode independent of prompt focus so `NAV` appears on the first `Escape` and exits on the first `Return`, `i`, or `a`
+
 ## [0.1.3] - 2026-05-16
 
 ### Fixed

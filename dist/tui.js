@@ -195,25 +195,20 @@ var plugin = {
     const enterMatchers = keyMatchers(api, keys.enter);
     const exitMatchers = keyMatchers(api, keys.exit);
     const [activeSession, setActiveSession] = createSignal();
-    let previousFocus;
     const isActive = () => {
       const id = activeSession();
       return Boolean(id && canUseNavigation(api, id));
     };
-    const exitNavigation = (focusPrevious = true) => {
+    const exitNavigation = () => {
       if (!activeSession()) return;
       api.keymap.clearPendingSequence();
       setActiveSession(void 0);
-      if (focusPrevious && previousFocus && !previousFocus.isDestroyed) previousFocus.focus();
-      previousFocus = void 0;
       api.ui.dialog.clear();
       api.renderer.requestRender();
     };
     const enterNavigation = () => {
       const id = sessionID(api);
       if (!id || !canUseNavigation(api)) return;
-      previousFocus = api.renderer.currentFocusedRenderable ?? void 0;
-      previousFocus?.blur();
       api.keymap.clearPendingSequence();
       setActiveSession(id);
       api.ui.dialog.clear();
@@ -230,7 +225,7 @@ var plugin = {
       {
         name: command.enter,
         title: "Enter session navigation mode",
-        desc: "Blur the prompt and use Vim-like keys to scroll the current idle session.",
+        desc: "Use Vim-like keys to scroll the current idle session without editing the prompt.",
         category: "Session",
         hidden: true,
         enabled: () => !isActive() && canUseNavigation(api),
@@ -243,7 +238,7 @@ var plugin = {
         category: "Session",
         hidden: true,
         enabled: isActive,
-        run: () => exitNavigation(true)
+        run: exitNavigation
       },
       {
         name: command.lineDown,
@@ -365,7 +360,7 @@ var plugin = {
           if (!exitMatchers.some((match) => match(ctx.event))) return;
           if (!isActive()) return;
           ctx.consume();
-          exitNavigation(true);
+          exitNavigation();
         },
         { priority: LAYER_PRIORITY }
       )
@@ -386,17 +381,17 @@ var plugin = {
     );
     api.lifecycle.onDispose(
       api.event.on("session.status", (event) => {
-        if (event.properties.sessionID === activeSession() && event.properties.status.type !== "idle") exitNavigation(false);
+        if (event.properties.sessionID === activeSession() && event.properties.status.type !== "idle") exitNavigation();
       })
     );
     api.lifecycle.onDispose(
       api.event.on("permission.asked", (event) => {
-        if (event.properties.sessionID === activeSession()) exitNavigation(true);
+        if (event.properties.sessionID === activeSession()) exitNavigation();
       })
     );
     api.lifecycle.onDispose(
       api.event.on("question.asked", (event) => {
-        if (event.properties.sessionID === activeSession()) exitNavigation(true);
+        if (event.properties.sessionID === activeSession()) exitNavigation();
       })
     );
     const indicator = options.indicator === false ? void 0 : typeof options.indicator === "string" ? options.indicator : "NAV";
@@ -405,7 +400,7 @@ var plugin = {
         order: 50,
         slots: {
           session_prompt_right(ctx, props) {
-            return /* @__PURE__ */ React.createElement(Show, { when: activeSession() === props.session_id && isActive() }, /* @__PURE__ */ React.createElement("text", null, /* @__PURE__ */ React.createElement("span", { style: { fg: ctx.theme.current.warning, bold: true } }, indicator)));
+            return /* @__PURE__ */ React.createElement(Show, { when: activeSession() === props.session_id }, /* @__PURE__ */ React.createElement("text", null, /* @__PURE__ */ React.createElement("span", { style: { fg: ctx.theme.current.warning, bold: true } }, indicator)));
           }
         }
       });

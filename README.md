@@ -36,7 +36,7 @@ For local development from this repository, add the local path to `tui.json`:
 
 ## Usage
 
-When the current session is idle, press `Escape` to enter navigation mode. The prompt blurs and a small `NAV` indicator appears on the right side of the session prompt.
+When the current session is idle, press `Escape` to enter navigation mode. A small `NAV` indicator appears on the right side of the session prompt, and navigation keys are captured without editing the prompt.
 
 Default keys:
 
