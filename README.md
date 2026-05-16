@@ -89,6 +89,14 @@ Set any keybind to `false` to disable it. Set `indicator` to `false` to hide the
 
 Message jumps work with current OpenCode builds and include a fallback for older builds where needed.
 
+## Project Docs
+
+- [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)
+- [Support](SUPPORT.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+
 ## Development
 
 ```sh

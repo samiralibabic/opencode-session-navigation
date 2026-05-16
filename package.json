@@ -10,7 +10,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsup src/tui.tsx --format esm --dts --external @opencode-ai/plugin --external @opencode-ai/plugin/tui --external @opentui/core --external @opentui/keymap --external @opentui/solid --external solid-js --clean",
