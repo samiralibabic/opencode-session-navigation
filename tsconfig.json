@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid",
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "outDir": "dist",
+    "allowSyntheticDefaultImports": true,
+    "verbatimModuleSyntax": true,
+    "types": [],
+    "ignoreDeprecations": "6.0"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

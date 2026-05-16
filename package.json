@@ -1,0 +1,44 @@
+{
+  "name": "opencode-session-navigation",
+  "version": "0.1.0",
+  "description": "Vim-like session navigation mode for OpenCode TUI.",
+  "type": "module",
+  "exports": {
+    "./tui": "./dist/tui.js"
+  },
+  "types": "./dist/tui.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup src/tui.tsx --format esm --dts --external @opencode-ai/plugin --external @opencode-ai/plugin/tui --external @opentui/core --external @opentui/keymap --external @opentui/solid --external solid-js --clean",
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": ">=1.15.0"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.2.10",
+    "@opentui/keymap": ">=0.2.10",
+    "@opentui/solid": ">=0.2.10",
+    "solid-js": ">=1.9.0"
+  },
+  "devDependencies": {
+    "@opentui/core": ">=0.2.10",
+    "@opentui/keymap": ">=0.2.10",
+    "@opentui/solid": ">=0.2.10",
+    "solid-js": ">=1.9.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3"
+  },
+  "license": "MIT",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "tui",
+    "navigation"
+  ]
+}
