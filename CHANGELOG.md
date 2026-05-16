@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 
 - Make navigation mode independent of prompt focus so `NAV` appears on the first `Escape` and exits on the first `Return`, `i`, or `a`
 
+### Documentation
+
+- Clarify global install versus project-local install instructions
+
 ## [0.1.3] - 2026-05-16
 
 ### Fixed

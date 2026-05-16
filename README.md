@@ -16,9 +16,15 @@ Or use the shorter alias:
 opencode plug --global opencode-session-navigation
 ```
 
-Global install keeps the plugin available in every repo and avoids modifying a repository-local `.opencode/tui.json` when you run the command from inside a git worktree.
+The `--global` flag installs it in your global OpenCode config, so the plugin is available in every repo and the command does not modify a repository-local `.opencode/tui.json`.
 
-To enable it for one project only, add it manually to that project's OpenCode TUI config, `tui.json`:
+To enable it for one project only, run the install command without `--global` from that repo:
+
+```sh
+opencode plugin opencode-session-navigation
+```
+
+This updates that repo's `.opencode/tui.json`. You can also add it manually to the project's OpenCode TUI config:
 
 ```json
 {
