@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.5] - 2026-05-16
+
+### Fixed
+
+- Build TUI JSX with the OpenTUI Solid transform so the `NAV` indicator updates on the first mode keypress
+- Make repeated `Escape` presses idempotent while navigation mode is already active
+- Guard against duplicate plugin activation registering stacked navigation handlers
+
 ## [0.1.4] - 2026-05-16
 
 ### Fixed

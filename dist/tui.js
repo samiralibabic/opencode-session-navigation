@@ -1,7 +1,14 @@
+// @bun
 // src/tui.tsx
-import { createSignal, Show } from "solid-js";
+import { setProp as _$setProp } from "@opentui/solid";
+import { effect as _$effect } from "@opentui/solid";
+import { insert as _$insert } from "@opentui/solid";
+import { memo as _$memo } from "@opentui/solid";
+import { createElement as _$createElement } from "@opentui/solid";
+import { createSignal } from "solid-js";
 var PLUGIN_ID = "opencode-session-navigation";
-var LAYER_PRIORITY = 1e3;
+var LAYER_PRIORITY = 1000;
+var INSTANCE_KEY = Symbol.for(`${PLUGIN_ID}.tui.instance`);
 var command = {
   enter: "session.navigation.enter",
   exit: "session.navigation.exit",
@@ -67,16 +74,18 @@ function keybindsFromOptions(options) {
     }
     if (Array.isArray(value)) {
       const list = value.flatMap((item) => typeof item === "string" ? keyList(item) : []);
-      if (list.length) next[key] = list;
+      if (list.length)
+        next[key] = list;
     }
   }
   return next;
 }
 function sessionID(api) {
   const route = api.route.current;
-  if (route.name !== "session" || !route.params) return void 0;
+  if (route.name !== "session" || !route.params)
+    return;
   const id = route.params.sessionID;
-  return typeof id === "string" ? id : void 0;
+  return typeof id === "string" ? id : undefined;
 }
 function sessionIsIdle(api, id) {
   const status = api.state.session.status(id);
@@ -87,18 +96,24 @@ function hasBlockingSessionPrompt(api, id) {
 }
 function canUseNavigation(api, activeID) {
   const currentID = sessionID(api);
-  if (!currentID) return false;
-  if (activeID && currentID !== activeID) return false;
-  if (api.ui.dialog.open) return false;
-  if (!sessionIsIdle(api, currentID)) return false;
-  if (hasBlockingSessionPrompt(api, currentID)) return false;
+  if (!currentID)
+    return false;
+  if (activeID && currentID !== activeID)
+    return false;
+  if (api.ui.dialog.open)
+    return false;
+  if (!sessionIsIdle(api, currentID))
+    return false;
+  if (hasBlockingSessionPrompt(api, currentID))
+    return false;
   return true;
 }
 function dispatchHost(api, name) {
   return api.keymap.dispatchCommand(name);
 }
 function isUsableTextPart(part) {
-  if (!part || part.type !== "text") return false;
+  if (!part || part.type !== "text")
+    return false;
   const maybe = part;
   return !maybe.synthetic && !maybe.ignored;
 }
@@ -112,10 +127,11 @@ function isScrollish(value) {
 function findScrollContainer(child) {
   let current = child?.parent;
   while (current) {
-    if (isScrollish(current)) return current;
+    if (isScrollish(current))
+      return current;
     current = current.parent;
   }
-  return void 0;
+  return;
 }
 function scrollTop(scroll) {
   return typeof scroll.scrollTop === "number" ? scroll.scrollTop : scroll.y;
@@ -125,11 +141,14 @@ function findUserMessageRenderables(api, id) {
 }
 function fallbackScrollMessage(api, direction) {
   const id = sessionID(api);
-  if (!id) return false;
+  if (!id)
+    return false;
   const renderables = findUserMessageRenderables(api, id);
-  if (renderables.length === 0) return false;
+  if (renderables.length === 0)
+    return false;
   const scroll = findScrollContainer(renderables[0]);
-  if (!scroll || scroll.isDestroyed) return false;
+  if (!scroll || scroll.isDestroyed)
+    return false;
   const top = scrollTop(scroll);
   const margin = 10;
   const target = direction === "next" ? renderables.find((child) => child.y > top + margin) : [...renderables].reverse().find((child) => child.y < top - margin);
@@ -141,13 +160,17 @@ function fallbackScrollMessage(api, direction) {
   return true;
 }
 function fallbackScroll(api, action) {
-  if (action === "nextMessage") return fallbackScrollMessage(api, "next");
-  if (action === "previousMessage") return fallbackScrollMessage(api, "previous");
+  if (action === "nextMessage")
+    return fallbackScrollMessage(api, "next");
+  if (action === "previousMessage")
+    return fallbackScrollMessage(api, "previous");
   const id = sessionID(api);
-  if (!id) return false;
+  if (!id)
+    return false;
   const firstMessage = findUserMessageRenderables(api, id)[0];
   const scroll = findScrollContainer(firstMessage);
-  if (!scroll || scroll.isDestroyed) return false;
+  if (!scroll || scroll.isDestroyed)
+    return false;
   switch (action) {
     case "lineDown":
       scroll.scrollBy(1);
@@ -176,7 +199,11 @@ function fallbackScroll(api, action) {
   }
 }
 function bindings(keys, cmd) {
-  return keys.map((key) => ({ key, cmd, preventDefault: true }));
+  return keys.map((key) => ({
+    key,
+    cmd,
+    preventDefault: true
+  }));
 }
 function keyMatchers(api, keys) {
   return keys.flatMap((key) => {
@@ -190,6 +217,13 @@ function keyMatchers(api, keys) {
 var plugin = {
   id: PLUGIN_ID,
   tui: async (api, rawOptions) => {
+    const globalState = globalThis;
+    if (globalState[INSTANCE_KEY])
+      return;
+    globalState[INSTANCE_KEY] = true;
+    api.lifecycle.onDispose(() => {
+      delete globalState[INSTANCE_KEY];
+    });
     const options = readOptions(rawOptions);
     const keys = keybindsFromOptions(options);
     const enterMatchers = keyMatchers(api, keys.enter);
@@ -200,207 +234,192 @@ var plugin = {
       return Boolean(id && canUseNavigation(api, id));
     };
     const exitNavigation = () => {
-      if (!activeSession()) return;
+      if (!activeSession())
+        return;
       api.keymap.clearPendingSequence();
-      setActiveSession(void 0);
+      setActiveSession(undefined);
       api.ui.dialog.clear();
       api.renderer.requestRender();
     };
     const enterNavigation = () => {
       const id = sessionID(api);
-      if (!id || !canUseNavigation(api)) return;
+      if (!id || !canUseNavigation(api))
+        return;
       api.keymap.clearPendingSequence();
       setActiveSession(id);
       api.ui.dialog.clear();
       api.renderer.requestRender();
     };
     const runNavigation = (action) => {
-      if (!isActive()) return;
+      if (!isActive())
+        return;
       const result = dispatchHost(api, hostCommand[action]);
-      if (!result.ok && result.reason === "not-found") fallbackScroll(api, action);
+      if (!result.ok && result.reason === "not-found")
+        fallbackScroll(api, action);
       api.ui.dialog.clear();
       api.renderer.requestRender();
     };
-    const commands = [
-      {
-        name: command.enter,
-        title: "Enter session navigation mode",
-        desc: "Use Vim-like keys to scroll the current idle session without editing the prompt.",
-        category: "Session",
-        hidden: true,
-        enabled: () => !isActive() && canUseNavigation(api),
-        run: enterNavigation
-      },
-      {
-        name: command.exit,
-        title: "Exit session navigation mode",
-        desc: "Return focus to the prompt.",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: exitNavigation
-      },
-      {
-        name: command.lineDown,
-        title: "Navigation mode line down",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: () => runNavigation("lineDown")
-      },
-      {
-        name: command.lineUp,
-        title: "Navigation mode line up",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: () => runNavigation("lineUp")
-      },
-      {
-        name: command.halfPageDown,
-        title: "Navigation mode half page down",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: () => runNavigation("halfPageDown")
-      },
-      {
-        name: command.halfPageUp,
-        title: "Navigation mode half page up",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: () => runNavigation("halfPageUp")
-      },
-      {
-        name: command.pageDown,
-        title: "Navigation mode page down",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: () => runNavigation("pageDown")
-      },
-      {
-        name: command.pageUp,
-        title: "Navigation mode page up",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: () => runNavigation("pageUp")
-      },
-      {
-        name: command.first,
-        title: "Navigation mode first message",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: () => runNavigation("first")
-      },
-      {
-        name: command.last,
-        title: "Navigation mode last message",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: () => runNavigation("last")
-      },
-      {
-        name: command.nextMessage,
-        title: "Navigation mode next user message",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: () => runNavigation("nextMessage")
-      },
-      {
-        name: command.previousMessage,
-        title: "Navigation mode previous user message",
-        category: "Session",
-        hidden: true,
-        enabled: isActive,
-        run: () => runNavigation("previousMessage")
-      }
-    ];
+    const commands = [{
+      name: command.enter,
+      title: "Enter session navigation mode",
+      desc: "Use Vim-like keys to scroll the current idle session without editing the prompt.",
+      category: "Session",
+      hidden: true,
+      enabled: () => !isActive() && canUseNavigation(api),
+      run: enterNavigation
+    }, {
+      name: command.exit,
+      title: "Exit session navigation mode",
+      desc: "Return focus to the prompt.",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: exitNavigation
+    }, {
+      name: command.lineDown,
+      title: "Navigation mode line down",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: () => runNavigation("lineDown")
+    }, {
+      name: command.lineUp,
+      title: "Navigation mode line up",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: () => runNavigation("lineUp")
+    }, {
+      name: command.halfPageDown,
+      title: "Navigation mode half page down",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: () => runNavigation("halfPageDown")
+    }, {
+      name: command.halfPageUp,
+      title: "Navigation mode half page up",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: () => runNavigation("halfPageUp")
+    }, {
+      name: command.pageDown,
+      title: "Navigation mode page down",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: () => runNavigation("pageDown")
+    }, {
+      name: command.pageUp,
+      title: "Navigation mode page up",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: () => runNavigation("pageUp")
+    }, {
+      name: command.first,
+      title: "Navigation mode first message",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: () => runNavigation("first")
+    }, {
+      name: command.last,
+      title: "Navigation mode last message",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: () => runNavigation("last")
+    }, {
+      name: command.nextMessage,
+      title: "Navigation mode next user message",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: () => runNavigation("nextMessage")
+    }, {
+      name: command.previousMessage,
+      title: "Navigation mode previous user message",
+      category: "Session",
+      hidden: true,
+      enabled: isActive,
+      run: () => runNavigation("previousMessage")
+    }];
     const enterBindings = bindings(keys.enter, command.enter);
-    const navigationBindings = [
-      ...bindings(keys.exit, command.exit),
-      ...bindings(keys.lineDown, command.lineDown),
-      ...bindings(keys.lineUp, command.lineUp),
-      ...bindings(keys.halfPageDown, command.halfPageDown),
-      ...bindings(keys.halfPageUp, command.halfPageUp),
-      ...bindings(keys.pageDown, command.pageDown),
-      ...bindings(keys.pageUp, command.pageUp),
-      ...bindings(keys.first, command.first),
-      ...bindings(keys.last, command.last),
-      ...bindings(keys.nextMessage, command.nextMessage),
-      ...bindings(keys.previousMessage, command.previousMessage)
-    ];
-    api.lifecycle.onDispose(
-      api.keymap.registerLayer({
-        priority: LAYER_PRIORITY,
-        commands
-      })
-    );
-    api.lifecycle.onDispose(
-      api.keymap.intercept(
-        "key",
-        (ctx) => {
-          if (!enterMatchers.some((match) => match(ctx.event))) return;
-          if (isActive() || !canUseNavigation(api)) return;
-          ctx.consume();
-          enterNavigation();
-        },
-        { priority: LAYER_PRIORITY }
-      )
-    );
-    api.lifecycle.onDispose(
-      api.keymap.intercept(
-        "key",
-        (ctx) => {
-          if (!exitMatchers.some((match) => match(ctx.event))) return;
-          if (!isActive()) return;
-          ctx.consume();
-          exitNavigation();
-        },
-        { priority: LAYER_PRIORITY }
-      )
-    );
-    api.lifecycle.onDispose(
-      api.keymap.registerLayer({
-        priority: LAYER_PRIORITY,
-        enabled: () => !isActive() && canUseNavigation(api),
-        bindings: enterBindings
-      })
-    );
-    api.lifecycle.onDispose(
-      api.keymap.registerLayer({
-        priority: LAYER_PRIORITY,
-        enabled: isActive,
-        bindings: navigationBindings
-      })
-    );
-    api.lifecycle.onDispose(
-      api.event.on("session.status", (event) => {
-        if (event.properties.sessionID === activeSession() && event.properties.status.type !== "idle") exitNavigation();
-      })
-    );
-    api.lifecycle.onDispose(
-      api.event.on("permission.asked", (event) => {
-        if (event.properties.sessionID === activeSession()) exitNavigation();
-      })
-    );
-    api.lifecycle.onDispose(
-      api.event.on("question.asked", (event) => {
-        if (event.properties.sessionID === activeSession()) exitNavigation();
-      })
-    );
-    const indicator = options.indicator === false ? void 0 : typeof options.indicator === "string" ? options.indicator : "NAV";
+    const navigationBindings = [...bindings(keys.exit, command.exit), ...bindings(keys.lineDown, command.lineDown), ...bindings(keys.lineUp, command.lineUp), ...bindings(keys.halfPageDown, command.halfPageDown), ...bindings(keys.halfPageUp, command.halfPageUp), ...bindings(keys.pageDown, command.pageDown), ...bindings(keys.pageUp, command.pageUp), ...bindings(keys.first, command.first), ...bindings(keys.last, command.last), ...bindings(keys.nextMessage, command.nextMessage), ...bindings(keys.previousMessage, command.previousMessage)];
+    api.lifecycle.onDispose(api.keymap.registerLayer({
+      priority: LAYER_PRIORITY,
+      commands
+    }));
+    api.lifecycle.onDispose(api.keymap.intercept("key", (ctx) => {
+      if (!enterMatchers.some((match) => match(ctx.event)))
+        return;
+      if (isActive()) {
+        ctx.consume();
+        return;
+      }
+      if (!canUseNavigation(api))
+        return;
+      ctx.consume();
+      enterNavigation();
+    }, {
+      priority: LAYER_PRIORITY
+    }));
+    api.lifecycle.onDispose(api.keymap.intercept("key", (ctx) => {
+      if (!exitMatchers.some((match) => match(ctx.event)))
+        return;
+      if (!isActive())
+        return;
+      ctx.consume();
+      exitNavigation();
+    }, {
+      priority: LAYER_PRIORITY
+    }));
+    api.lifecycle.onDispose(api.keymap.registerLayer({
+      priority: LAYER_PRIORITY,
+      enabled: () => !isActive() && canUseNavigation(api),
+      bindings: enterBindings
+    }));
+    api.lifecycle.onDispose(api.keymap.registerLayer({
+      priority: LAYER_PRIORITY,
+      enabled: isActive,
+      bindings: navigationBindings
+    }));
+    api.lifecycle.onDispose(api.event.on("session.status", (event) => {
+      if (event.properties.sessionID === activeSession() && event.properties.status.type !== "idle")
+        exitNavigation();
+    }));
+    api.lifecycle.onDispose(api.event.on("permission.asked", (event) => {
+      if (event.properties.sessionID === activeSession())
+        exitNavigation();
+    }));
+    api.lifecycle.onDispose(api.event.on("question.asked", (event) => {
+      if (event.properties.sessionID === activeSession())
+        exitNavigation();
+    }));
+    const indicator = options.indicator === false ? undefined : typeof options.indicator === "string" ? options.indicator : "NAV";
     if (indicator) {
       api.slots.register({
         order: 50,
         slots: {
           session_prompt_right(ctx, props) {
-            return /* @__PURE__ */ React.createElement(Show, { when: activeSession() === props.session_id }, /* @__PURE__ */ React.createElement("text", null, /* @__PURE__ */ React.createElement("span", { style: { fg: ctx.theme.current.warning, bold: true } }, indicator)));
+            return (() => {
+              var _el$ = _$createElement("text");
+              _$insert(_el$, (() => {
+                var _c$ = _$memo(() => activeSession() === props.session_id);
+                return () => _c$() ? (() => {
+                  var _el$2 = _$createElement("span");
+                  _$insert(_el$2, indicator);
+                  _$effect((_$p) => _$setProp(_el$2, "style", {
+                    fg: ctx.theme.current.warning,
+                    bold: true
+                  }, _$p));
+                  return _el$2;
+                })() : "";
+              })());
+              return _el$;
+            })();
           }
         }
       });

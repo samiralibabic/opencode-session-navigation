@@ -1,6 +1,6 @@
 {
   "name": "opencode-session-navigation",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Vim-like session navigation mode for OpenCode TUI.",
   "type": "module",
   "exports": {
@@ -18,7 +18,7 @@
     "CODE_OF_CONDUCT.md"
   ],
   "scripts": {
-    "build": "tsup src/tui.tsx --format esm --dts --external @opencode-ai/plugin --external @opencode-ai/plugin/tui --external @opentui/core --external @opentui/keymap --external @opentui/solid --external solid-js --clean",
+    "build": "bun script/build.ts",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build"
   },

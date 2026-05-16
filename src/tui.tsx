@@ -1,9 +1,11 @@
+/** @jsxImportSource @opentui/solid */
 import type { KeyEvent, Renderable, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
 import type { Binding, Command, RunCommandResult } from "@opentui/keymap"
-import { createSignal, Show } from "solid-js"
+import { createSignal } from "solid-js"
 
 const PLUGIN_ID = "opencode-session-navigation"
 const LAYER_PRIORITY = 1_000
+const INSTANCE_KEY = Symbol.for(`${PLUGIN_ID}.tui.instance`)
 
 type Api = TuiPluginApi
 type TuiCommand = Command<Renderable, KeyEvent>
@@ -21,6 +23,10 @@ type Scrollish = Renderable & {
 type PluginOptions = {
   keybinds?: Partial<Record<KeybindName, string | readonly string[] | false>>
   indicator?: false | string
+}
+
+type GlobalState = typeof globalThis & {
+  [INSTANCE_KEY]?: true
 }
 
 const command = {
@@ -256,6 +262,13 @@ function keyMatchers(api: Api, keys: readonly string[]) {
 const plugin: TuiPluginModule = {
   id: PLUGIN_ID,
   tui: async (api, rawOptions) => {
+    const globalState = globalThis as GlobalState
+    if (globalState[INSTANCE_KEY]) return
+    globalState[INSTANCE_KEY] = true
+    api.lifecycle.onDispose(() => {
+      delete globalState[INSTANCE_KEY]
+    })
+
     const options = readOptions(rawOptions)
     const keys = keybindsFromOptions(options)
     const enterMatchers = keyMatchers(api, keys.enter)
@@ -420,7 +433,11 @@ const plugin: TuiPluginModule = {
         "key",
         (ctx) => {
           if (!enterMatchers.some((match) => match(ctx.event))) return
-          if (isActive() || !canUseNavigation(api)) return
+          if (isActive()) {
+            ctx.consume()
+            return
+          }
+          if (!canUseNavigation(api)) return
           ctx.consume()
           enterNavigation()
         },
@@ -481,11 +498,13 @@ const plugin: TuiPluginModule = {
         slots: {
           session_prompt_right(ctx, props) {
             return (
-              <Show when={activeSession() === props.session_id}>
-                <text>
+              <text>
+                {activeSession() === props.session_id ? (
                   <span style={{ fg: ctx.theme.current.warning, bold: true }}>{indicator}</span>
-                </text>
-              </Show>
+                ) : (
+                  ""
+                )}
+              </text>
             )
           },
         },
